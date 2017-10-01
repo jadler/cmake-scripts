@@ -17,10 +17,12 @@ IF (NOT DEFINED TARGET_TYPE)
   MESSAGE (WARNING "TARGET_TYPE was not defined, using default value: ${TARGET_TYPE}")
 ENDIF()
 
-IF (NOT DEFINED BUILD_TESTS)
-  SET (BUILD_TESTS OFF CACHE BOOL "Default build tests")
-  MESSAGE (WARNING "BUILD_TESTS not defined, using default value: ${BUILD_TESTS}")
-ENDIF()
+# IF (NOT DEFINED BUILD_TESTS)
+#   SET (BUILD_TESTS ON CACHE BOOL "Default build tests")
+#   MESSAGE (WARNING "BUILD_TESTS not defined, using default value: ${BUILD_TESTS}")
+# ENDIF()
+
+# LIST (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/path/")
 
 #######
 # Validar o compilador instalado
@@ -145,113 +147,5 @@ INSTALL (
   FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
   DESTINATION lib/${PROJECT_NAME})
 
-IF (BUILD_TESTS AND NOT BS_BUILD MATCHES "EXECUTABLE")
-  #################
-  #			CTEST			#
-  #################
-  SET (PROJECT_TEST_NAME ${PROJECT_NAME}Test CACHE STRING "Default project test name")
-  SET_PROPERTY (DIRECTORY PROPERTY COMPILE_DEFINITIONS __TEST_CLASS__=${PROJECT_TEST_NAME})
-  SET (EXTRA_TEST_ARGS ${EXTRA_TEST_ARGS} ${PROJECT_NAME})
-
-  ENABLE_TESTING ()
-  FIND_PACKAGE (GTest REQUIRED)
-  INCLUDE_DIRECTORIES (${GTEST_INCLUDE_DIRS})
-  SET (EXTRA_TEST_ARGS ${EXTRA_TEST_ARGS} ${GTEST_BOTH_LIBRARIES} ${EXTRA_ARGS})
-
-  # FIND_PACKAGE (GMock REQUIRED)
-  # INCLUDE_DIRECTORIES (${GMOCK_INCLUDE_DIRS})
-  # SET (EXTRA_TEST_ARGS ${EXTRA_TEST_ARGS} ${GMOCK_BOTH_LIBRARIES})
-
-  #Carrega todos os arquivos de código fonte em SOURCE
-  FILE (GLOB TESTS_SOURCES "test/src/*.c*")
-
-  IF (EXISTS "test/resources")
-    FILE (COPY "test/resources" DESTINATION "${CMAKE_BINARY_DIR}")
-  ENDIF ()
-
-  ADD_EXECUTABLE (${PROJECT_TEST_NAME} ${TESTS_SOURCES})
-  TARGET_LINK_LIBRARIES (${PROJECT_TEST_NAME} ${EXTRA_TEST_ARGS} ${PROJECT_NAME})
-
-#Cria uma entrada com o mesmo nome ${PROJECT_TEST_NAME} para ser executado pelo comando make test
-ADD_TEST (${PROJECT_TEST_NAME} ${PROJECT_TEST_NAME})
-
+ENABLE_TESTING()
 INCLUDE (CTest)
-ENDIF()
-
-# Configurações de empacotamento do projeto
-OPTION (PACKAGE "Enable generate installer" OFF)
-IF (PACKAGE)
-  #################
-  #			CPACK			#
-  #################
-  IF (NOT DEFINED CPACK_GENERATOR)
-
-    MESSAGE (AUTHOR_WARNING "No generator specified, package option will be disabled")
-
-  ELSE ()
-
-    SET (CPACK_PACKAGE_VERSION "${VERSION_FULL}")
-    SET (CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
-    SET (CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
-    SET (CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
-    SET (CPACK_PACKAGE_NAME "${PROJECT_NAME}" CACHE STRING "Default package name")
-    SET (CPACK_PACKAGE_VENDOR "BioLogica Sistemas S.A" CACHE STRING "Default package vendor name")
-    SET (CPACK_PACKAGE_DESCRIPTION_SUMMARY "" CACHE STRING "Short description summary")
-    SET (CPACK_PACKAGE_INSTALL_DIRECTORY "BioLogica Sistemas" CACHE STRING "Default installation directory")
-    SET (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_FULL}" CACHE STRING "Package file name without extension")
-
-    MESSAGE (STATUS "cpack generator: ${CPACK_GENERATOR}")
-
-    ##############################################################################
-    #  - Bloco de configurações para empacotamento NSIS                          #
-    #  - Não usado no momento                                                    #
-    ##############################################################################
-    #IF (CPACK_GENERATOR MATCHES "NSIS")
-    #  INCLUDE (UseBSNSIS)
-    #ENDIF()
-
-    ##############################################################################
-    #  - Deve ser chamado sempre após as configurações terem sido carregadas     #
-    ##############################################################################
-    INCLUDE (CPack)
-
-    # Instalation types
-    CPACK_ADD_INSTALL_TYPE (Developer)
-
-    # Component groups
-    CPACK_ADD_COMPONENT_GROUP (
-      Runtime)
-
-    CPACK_ADD_COMPONENT_GROUP (
-      Development
-      EXPANDED
-      DESCRIPTION "All of the tools you'll ever need to develop software")
-
-    # Components
-    CPACK_ADD_COMPONENT (applications
-      DISPLAY_NAME "${PROJECT_NAME} Application"
-      DESCRIPTION "An extremely useful application that makes use of ${PROJECT_NAME}"
-      GROUP Runtime
-      INSTALL_TYPES Full)
-
-    CPACK_ADD_COMPONENT (documentation
-      DISPLAY_NAME "${PROJECT_NAME} Documentation"
-      DESCRIPTION "The extensive suite of ${PROJECT_NAME} Application documentation files"
-      GROUP Runtime
-      INSTALL_TYPES Full)
-
-    CPACK_ADD_COMPONENT (libraries
-      DISPLAY_NAME "Libraries"
-      DESCRIPTION "Static libraries used to build programs with ${PROJECT_NAME}"
-      GROUP Development
-      INSTALL_TYPES Developer Full)
-
-    CPACK_ADD_COMPONENT (headers
-      DISPLAY_NAME "C++ Headers"
-      DESCRIPTION "C/C++ header files for use with ${PROJECT_NAME}"
-      GROUP Development
-      DEPENDS libraries
-      INSTALL_TYPES Developer Full)
-
-  ENDIF()
-ENDIF()
