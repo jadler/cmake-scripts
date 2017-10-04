@@ -1,28 +1,10 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 3.0)
 
-#IF (NOT DEFINED BUILD_SHARED_LIBS)
-#  SET (BUILD_SHARED_LIBS ON CACHE BOOL "Default library build type")
-#  MESSAGE (WARNING "BUILD_SHARED_LIBS not defined, using default value: ${BUILD_SHARED_LIBS}")
-#ENDIF()
-
 IF (NOT DEFINED CMAKE_BUILD_TYPE)
   SET (CMAKE_BUILD_TYPE "Debug" CACHE STRING "Default build type")
   SET_PROPERTY (CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
   MESSAGE (WARNING "CMAKE_BUILD_TYPE not defined, using default value: ${CMAKE_BUILD_TYPE}")
 ENDIF()
-
-IF (NOT DEFINED TARGET_TYPE)
-  SET (TARGET_TYPE "Library" CACHE STRING "Default artifact build type")
-  SET_PROPERTY (CACHE TARGET_TYPE PROPERTY STRINGS Binary Library)
-  MESSAGE (WARNING "TARGET_TYPE was not defined, using default value: ${TARGET_TYPE}")
-ENDIF()
-
-# IF (NOT DEFINED BUILD_TESTS)
-#   SET (BUILD_TESTS ON CACHE BOOL "Default build tests")
-#   MESSAGE (WARNING "BUILD_TESTS not defined, using default value: ${BUILD_TESTS}")
-# ENDIF()
-
-# LIST (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/path/")
 
 #######
 # Validar o compilador instalado
@@ -30,7 +12,6 @@ SET (CMAKE_C_COMPILER /usr/bin/gcc CACHE STRING "Default C compiler")
 SET (CMAKE_CXX_COMPILER /usr/bin/g++ CACHE STRING "Default CXX compiler")
 
 SET (CMAKE_CXX_STANDARD 17)
-# set_property(TARGET tgt PROPERTY CXX_STANDARD 11)
 SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 SET (EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -Wall -ansi -O0 -fprofile-arcs -ftest-coverage")
@@ -62,48 +43,62 @@ SET (INCLUDE_DIR include CACHE PATH "Installation directory for header files")
 
 OPTION (CMAKE_INCLUDE_CURRENT_DIR "Add the source and build directories to the include path" ON)
 
-# Carrega todos os arquivos do diretório src em SOURCE
-FILE (GLOB SOURCES "src/*.c*")
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/src)
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/resources)
-
-IF (EXISTS "${CMAKE_SOURCE_DIR}/resources")
-  FILE (COPY "resources" DESTINATION "${CMAKE_BINARY_DIR}")
-ENDIF ()
-
 PROJECT (${PROJECT_NAME} C CXX)
 
-################################################################################
-################################################################################
-################################################################################
-################################################################################
+IF (EXISTS "${CMAKE_SOURCE_DIR}/resources")
+  FILE (COPY "${CMAKE_SOURCE_DIR}/resources" DESTINATION "${CMAKE_BINARY_DIR}")
+  INCLUDE_DIRECTORIES ("${CMAKE_SOURCE_DIR}/resources")
+ENDIF ()
 
 IF (EXISTS "${CMAKE_SOURCE_DIR}/Dependencies.cmake")
-  MESSAGE (STATUS "Dependencies.cmake found")
+  MESSAGE (STATUS "${CMAKE_SOURCE_DIR}/Dependencies.cmake found")
   INCLUDE (Dependencies.cmake)
 ENDIF()
 
-MESSAGE (STATUS "Building project as ${TARGET_TYPE}")
-MESSAGE (STATUS "Sources: ${SOURCES}")
+INCLUDE_DIRECTORIES ("${CMAKE_SOURCE_DIR}/include")
 
-IF (TARGET_TYPE STREQUAL "Library")
-  ADD_LIBRARY(${PROJECT_NAME} "${SOURCES}")
+# Carrega todos os arquivos do diretório src em SOURCE
+FILE (GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.c*")
+
+# Cria a lista de projetos que podem ser definidos para serem criados
+SET_PROPERTY (CACHE PROJECT_TYPE PROPERTY STRINGS Binary Library Header)
+
+# Verifica se o diretório ${CMAKE_SOURCE_DIR}/src/ esta vazio
+# Se o diretório estiver vazio então define o projeto como sendo do tipo
+# que vai conter apenas headers
+# Este trecho desconsidera a opção passada pela linha de comando caso o
+# diretório esteja vazio
+LIST (LENGTH SOURCES SOURCES_LENGTH)
+IF (${SOURCES_LENGTH} EQUAL 0)
+  SET (PROJECT_TYPE "Header")
 ELSE ()
+  INCLUDE_DIRECTORIES ("${CMAKE_SOURCE_DIR}/src")
+  MESSAGE (STATUS "Sources: ${SOURCES}")
+ENDIF()
+
+# Caso não tenha sido definido ainda, define como Library para projetos e
+# lança uma mensagem de aviso informando o ocorrido
+IF (NOT DEFINED PROJECT_TYPE)
+  SET (PROJECT_TYPE "Library" CACHE STRING "Default artifact build type")
+  MESSAGE (WARNING "PROJECT_TYPE was not defined, using default value: ${PROJECT_TYPE}")
+ENDIF()
+
+MESSAGE (STATUS "Building project as ${PROJECT_TYPE}")
+IF (PROJECT_TYPE STREQUAL "Header")
+  ADD_LIBRARY(${PROJECT_NAME} INTERFACE)
+ELSEIF (PROJECT_TYPE STREQUAL "Library")
+  ADD_LIBRARY(${PROJECT_NAME} "${SOURCES}")
+  IF (UNIX)
+    SET_TARGET_PROPERTIES (${PROJECT_NAME} PROPERTIES
+      OUTPUT_NAME ${PROJECT_NAME}
+      VERSION ${GENERIC_LIB_VERSION}
+      SOVERSION ${GENERIC_LIB_SOVERSION})
+  ENDIF()
+ELSE (PROJECT_TYPE STREQUAL "Binary")
   ADD_EXECUTABLE (${PROJECT_NAME} "${SOURCES}")
 ENDIF ()
 
 TARGET_LINK_LIBRARIES (${PROJECT_NAME} ${EXTRA_ARGS})
-IF (UNIX)
-  SET_TARGET_PROPERTIES (${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME ${PROJECT_NAME}
-    VERSION ${GENERIC_LIB_VERSION}
-    SOVERSION ${GENERIC_LIB_SOVERSION})
-ENDIF()
-################################################################################
-################################################################################
-################################################################################
-################################################################################
 
 INSTALL (
   TARGETS ${PROJECT_NAME}
@@ -117,13 +112,18 @@ INSTALL (
 
 INSTALL (
   DIRECTORY ${CMAKE_SOURCE_DIR}/include/
-  DESTINATION ${INCLUDE_DIR}
+  DESTINATION ${INCLUDE_DIR}/${PROJECT_NAME}-${VERSION_SHORT}
+  FILES_MATCHING PATTERN "*.h*")
+
+INSTALL (
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+  DESTINATION ${INCLUDE_DIR}/${PROJECT_NAME}
   FILES_MATCHING PATTERN "*.h*")
 
 INSTALL (
   EXPORT ${PROJECT_NAME}Targets
   FILE "${PROJECT_NAME}Targets.cmake"
-  DESTINATION lib/${PROJECT_NAME})
+  DESTINATION lib/${PROJECT_NAME}-${VERSION_SHORT})
 
 INCLUDE (${CMAKE_SOURCE_DIR}/Configure.cmake)
 CONFIGURE_PACKAGE_CONFIG_FILE(
@@ -136,16 +136,15 @@ CONFIGURE_PACKAGE_CONFIG_FILE(
 
 INSTALL (
   FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  DESTINATION lib/${PROJECT_NAME})
+        "${CMAKE_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION lib/${PROJECT_NAME}-${VERSION_SHORT})
 
 WRITE_BASIC_PACKAGE_VERSION_FILE(
   ${CMAKE_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
   VERSION ${VERSION_SHORT}
   COMPATIBILITY SameMajorVersion)
 
-INSTALL (
-  FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  DESTINATION lib/${PROJECT_NAME})
-
-ENABLE_TESTING()
-INCLUDE (CTest)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/test)
+  ENABLE_TESTING()
+  INCLUDE (CTest)
+ENDIF()
