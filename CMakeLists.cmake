@@ -1,5 +1,3 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 3.9 FATAL_ERROR)
-
 SET (VERSION_SHORT "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 SET (VERSION_FULL "${VERSION_SHORT}-${VERSION_TWEAK}")
 SET (GENERIC_LIB_VERSION ${VERSION_SHORT})
@@ -13,6 +11,8 @@ IF (NOT DEFINED PROJECT_NAME)
 	MESSAGE (WARNING "PROJECT_NAME not defined, using root directory as default name.")
 ENDIF()
 
+MESSAGE (STATUS "Building project ${PROJECT_NAME} version ${VERSION_SHORT}")
+
 PROJECT (${PROJECT_NAME} VERSION ${VERSION_SHORT} LANGUAGES C CXX)
 
 IF (EXISTS "${CMAKE_SOURCE_DIR}/Dependencies.cmake")
@@ -20,18 +20,14 @@ IF (EXISTS "${CMAKE_SOURCE_DIR}/Dependencies.cmake")
 	INCLUDE (Dependencies.cmake)
 ENDIF()
 
-#INCLUDE (ProjectBuildType.cmake)
-ADD_LIBRARY (${PROJECT_NAME} INTERFACE)
+IF (NOT DEFINED PROJECT_TYPE)
+	SET (PROJECT_TYPE "Library" CACHE STRING "Default artifact build type")
+	MESSAGE (WARN "PROJECT_TYPE not defined, setting default value: '${PROJECT_TYPE}'")
+ENDIF ()
 
+MESSAGE (STATUS "Building project as ${PROJECT_TYPE}")
+INCLUDE (${CMAKE_CURRENT_LIST_DIR}/build-type/${PROJECT_TYPE}.cmake)
 TARGET_LINK_LIBRARIES (${PROJECT_NAME} ${EXTERNAL_LIBS})
-
-TARGET_INCLUDE_DIRECTORIES (${PROJECT_NAME}
-	#	PUBLIC
-	#		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-	#		$<INSTALL_INTERFACE:include>
-	#	PRIVATE
-	#		src)
-	INTERFACE $<INSTALL_INTERFACE:include>)
 
 #TARGET_COMPILE_FEATURES (${PROJECT_NAME}
 #	PUBLIC
@@ -40,23 +36,32 @@ TARGET_INCLUDE_DIRECTORIES (${PROJECT_NAME}
 INSTALL (
 	TARGETS ${PROJECT_NAME}
 	EXPORT ${PROJECT_NAME}Config
-	# RUNTIME refers to the runtime piece of the target. Runtime piece only applies to executable targets and DLL (Windows) style shared libraries
-	RUNTIME DESTINATION bin
-	# LIBRARY refers to all the other (non DLL) shared libraries and modules.
-	LIBRARY DESTINATION lib
-	# ARCHIVE refers to the static libraries and the import parts of DLL libraries (LIB files).
-	ARCHIVE DESTINATION lib)
+	RUNTIME
+		DESTINATION bin
+		COMPONENT applications
+	LIBRARY
+		DESTINATION lib
+		COMPONENT libraries
+	ARCHIVE
+		DESTINATION lib
+		COMPONENT libraries)
 
-INSTALL (DIRECTORY include/ DESTINATION include)
+INSTALL (
+	DIRECTORY include/
+	COMPONENT headers
+	DESTINATION include)
 
 INSTALL (
 	EXPORT ${PROJECT_NAME}Config
 	FILE "${PROJECT_NAME}Config.cmake"
-	DESTINATION share/${PROJECT_NAME}-${VERSION_SHORT}/cmake)
+	COMPONENT libraries
+	DESTINATION lib/cmake/${PROJECT_NAME}-${VERSION_SHORT})
 
-IF(EXISTS ${CMAKE_SOURCE_DIR}/test)
+# Somente executa os testes se o projeto não for do tipo Header
+# e contiver um diretório test
+IF (NOT ${PROJECT_TYPE} MATCHES "Header" AND EXISTS ${CMAKE_SOURCE_DIR}/test)
 	ENABLE_TESTING()
 	INCLUDE (CTest)
 ENDIF()
 
-INCLUDE (CPack)
+INCLUDE (${CMAKE_CURRENT_LIST_DIR}/NSISCPackConfig.cmake) # Para 
