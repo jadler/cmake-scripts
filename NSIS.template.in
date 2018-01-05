@@ -642,7 +642,8 @@ Section "-Core installation"
   WriteRegStr SHCTX "Software\@CPACK_PACKAGE_VENDOR@\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@" "" $INSTDIR
 
   ;Create uninstaller
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$INSTDIR\uninstall"
+  WriteUninstaller "$INSTDIR\uninstall\@CPACK_PACKAGE_NAME@.exe"
   Push "DisplayName"
   Push "@CPACK_NSIS_DISPLAY_NAME@"
   Call ConditionalAddToRegisty
@@ -653,7 +654,7 @@ Section "-Core installation"
   Push "@CPACK_PACKAGE_VENDOR@"
   Call ConditionalAddToRegisty
   Push "UninstallString"
-  Push "$INSTDIR\Uninstall.exe"
+  Push "$INSTDIR\uninstall\@CPACK_PACKAGE_NAME@.exe"
   Call ConditionalAddToRegisty
   Push "NoRepair"
   Push "1"
@@ -693,7 +694,7 @@ Section "-Core installation"
   CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
 @CPACK_NSIS_CREATE_ICONS@
 @CPACK_NSIS_CREATE_ICONS_EXTRA@
-  CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Uninstall.lnk" "$INSTDIR\uninstall\@CPACK_PACKAGE_NAME@.exe"
 
   ;Read a value from an InstallOptions INI file
   !insertmacro MUI_INSTALLOPTIONS_READ $DO_NOT_ADD_TO_PATH "NSIS.InstallOptions.ini" "Field 2" "State"
@@ -805,6 +806,9 @@ FunctionEnd
 ;Uninstaller Section
 
 Section "Uninstall"
+
+  ReadRegStr $INSTDIR HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@" "InstallLocation"
+
   ReadRegStr $START_MENU SHCTX \
    "Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@" "StartMenu"
   ;MessageBox MB_OK "Start menu is in: $START_MENU"
@@ -832,8 +836,11 @@ Section "Uninstall"
 !endif
 
   ;Remove the uninstaller itself.
-  Delete "$INSTDIR\Uninstall.exe"
+  Delete "$INSTDIR\uninstall\@CPACK_PACKAGE_NAME@.exe"
   DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@"
+
+  ;Remove the uninstall directory if it is empty.
+  RMDir "$INSTDIR\uninstall"
 
   ;Remove the installation directory if it is empty.
   RMDir "$INSTDIR"
@@ -904,6 +911,7 @@ Function .onInit
   StrCmp "@CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL@" "ON" 0 inst
 
   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@" "UninstallString"
+  ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_PACKAGE_INSTALL_REGISTRY_KEY@" "InstallLocation"
   StrCmp $0 "" inst
 
   MessageBox MB_YESNOCANCEL|MB_ICONEXCLAMATION \
@@ -914,9 +922,7 @@ Function .onInit
 ;Run the uninstaller
 uninst:
   ClearErrors
-  StrLen $2 "\Uninstall.exe"
-  StrCpy $3 $0 -$2 # remove "\Uninstall.exe" from UninstallString to get path
-  ExecWait '"$0" /S _?=$3' ;Do not copy the uninstaller to a temp file
+  ExecWait '"$0" /S _?=$1' ;Do not copy the uninstaller to a temp file
 
   IfErrors uninst_failed inst
 uninst_failed:
