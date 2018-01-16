@@ -1,3 +1,6 @@
+# Adiciona o arquivo NSIS.template.in no module path do cpack
+SET (CPACK_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
 # Configurações de empacotamento do projeto
 SET (CPACK_GENERATOR "NSIS")
 SET (CPACK_NSIS_MODIFY_PATH OFF)
