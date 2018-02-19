@@ -5,4 +5,4 @@ SET (PROJECT_TYPES "Header Library Binary")
 
 MESSAGE (STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
-INCLUDE (P:\\aur\\cmake\\CMakeLists.cmake)
+INCLUDE (CMakeLists.cmake)
