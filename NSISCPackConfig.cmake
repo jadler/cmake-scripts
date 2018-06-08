@@ -1,63 +1,77 @@
-# Configurações de empacotamento do projeto
+# Adiciona o arquivo NSIS.template.in no module path do cpack
+SET (CPACK_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
+# Configurações de empacotamento do projeto
 SET (CPACK_GENERATOR "NSIS")
 SET (CPACK_NSIS_MODIFY_PATH OFF)
 SET (CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+SET (CPACK_NSIS_DISPLAY_NAME "${PROJECT_NAME}-${VERSION_SHORT}")
+SET (CPACK_NSIS_PACKAGE_NAME "${PROJECT_NAME}-${VERSION_SHORT}")
 
-SET (CPACK_PACKAGE_VERSION "${VERSION_FULL}")
-SET (CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
-SET (CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
-SET (CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
+SET (CPACK_PACKAGE_VERSION "${VERSION_SHORT}")
+SET (CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+SET (CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+SET (CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
 SET (CPACK_PACKAGE_NAME "${PROJECT_NAME}" CACHE STRING "Default package name")
 SET (CPACK_PACKAGE_VENDOR "BioLogica Sistemas S.A" CACHE STRING "Default package vendor name")
 SET (CPACK_PACKAGE_DESCRIPTION_SUMMARY "" CACHE STRING "Short description summary")
-SET (CPACK_PACKAGE_INSTALL_DIRECTORY "BioLogica Sistemas" CACHE STRING "Default installation directory")
-SET (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_FULL}" CACHE STRING "Package file name without extension")
+SET (CPACK_PACKAGE_INSTALL_DIRECTORY "BioLogica Sistemas\\\\${PROJECT_NAME}" CACHE STRING "Default installation directory")
+SET (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_SHORT}" CACHE STRING "Package file name without extension")
 
-##############################################################################
-#  - Deve ser chamado sempre após as configurações terem sido definidas      #
-##############################################################################
+# Componentes disponíveis definidos no projeto
+SET (CPACK_COMPONENTS_ALL
+	applications
+	libraries
+	headers
+	documentation)
+
+# CPACK_ALL_INSTALL_TYPES é apenas para NSIS
+SET (CPACK_ALL_INSTALL_TYPES
+	Full
+	Developer)
+
+LIST (FIND PROJECT_TYPES "Binary" _bin)
+LIST (FIND PROJECT_TYPES "Library" _lib)
+LIST (FIND PROJECT_TYPES "Header" _hdr)
+
+MESSAGE (STATUS "Available projects ${PROJECT_TYPES}")
+
+IF (${_bin} GREATER -1)
+	MESSAGE (STATUS "Adicionando runtime")
+	SET (CPACK_COMPONENT_GROUP_RUNTIME_EXPANDED ON)
+	# Application
+	SET (CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME	"${PROJECT_NAME} Application")
+	IF (${_lib} GREATER -1)
+		SET (CPACK_COMPONENT_APPLICATIONS_DEPENDS	libraries)
+	ENDIF ()
+	SET (CPACK_COMPONENT_APPLICATIONS_GROUP			"Runtime")
+	SET (CPACK_COMPONENT_APPLICATIONS_INSTALL_TYPES	Full)
+ENDIF ()
+
+IF (${_lib} GREATER -1 OR ${_hdr} GREATER -1)
+	SET (CPACK_COMPONENT_GROUP_DEVELOPMENT_EXPANDED ON)
+ENDIF ()
+
+IF (${_lib} GREATER -1)
+	# Libraries
+	SET (CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME		"${PROJECT_NAME} Libraries")
+	IF (${_hdr} GREATER -1)
+		SET (CPACK_COMPONENT_LIBRARIES_DEPENDS		headers)
+	ENDIF ()
+	SET (CPACK_COMPONENT_LIBRARIES_GROUP			"Development")
+	SET (CPACK_COMPONENT_LIBRARIES_INSTALL_TYPES	Full Developer)
+ENDIF ()
+
+IF (${_hdr} GREATER -1)
+	# Headers
+	SET (CPACK_COMPONENT_HEADERS_DISPLAY_NAME	"${PROJECT_NAME} Headers")
+	SET (CPACK_COMPONENT_HEADERS_GROUP			"Development")
+	SET (CPACK_COMPONENT_HEADERS_INSTALL_TYPES	Full Developer)
+ENDIF ()
+
+# Docs
+SET (CPACK_COMPONENT_DOCUMENTATION_DISPLAY_NAME		"${PROJECT_NAME} Documentation")
+SET (CPACK_COMPONENT_DOCUMENTATION_GROUP			"Development")
+SET (CPACK_COMPONENT_DOCUMENTATION_INSTALL_TYPES	Full Developer)
+
 INCLUDE (CPack)
-
-# Instalation types
-CPACK_ADD_INSTALL_TYPE (
-  Developer
-  Full
-)
-
-# # Component groups
-# CPACK_ADD_COMPONENT_GROUP (
-#   Runtime
-# )
-#
-# CPACK_ADD_COMPONENT_GROUP (
-#   Development
-#   EXPANDED
-#   DESCRIPTION "All of the tools you'll ever need to develop software"
-# )
-
-# Components
-CPACK_ADD_COMPONENT (applications
-  DISPLAY_NAME "${PROJECT_NAME} Application"
-  DESCRIPTION "An extremely useful application that makes use of ${PROJECT_NAME}"
-  INSTALL_TYPES Full
-)
-
-CPACK_ADD_COMPONENT (documentation
-  DISPLAY_NAME "${PROJECT_NAME} Documentation"
-  DESCRIPTION "The extensive suite of ${PROJECT_NAME} Application documentation files"
-  INSTALL_TYPES Developer Full
-)
-
-CPACK_ADD_COMPONENT (libraries
-  DISPLAY_NAME "${PROJECT_NAME} Libraries"
-  DESCRIPTION "Static libraries used to build programs with ${PROJECT_NAME}"
-  INSTALL_TYPES Developer Full
-)
-
-CPACK_ADD_COMPONENT (headers
-  DISPLAY_NAME "${PROJECT_NAME} Headers"
-  DESCRIPTION "C/C++ header files for use with ${PROJECT_NAME}"
-  DEPENDS libraries
-  INSTALL_TYPES Developer Full
-)

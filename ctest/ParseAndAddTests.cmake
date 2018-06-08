@@ -48,7 +48,7 @@ option(PARSE_CATCH_TESTS_ADD_TARGET_IN_TEST_NAME "Add target name to the test na
 
 function(PrintDebugMessage)
     if(PARSE_CATCH_TESTS_VERBOSE)
-            message(STATUS "ParseAndAddCatchTests: ${ARGV}")
+            message(STATUS "Parsing and add test: ${ARGV}")
     endif()
 endfunction()
 
