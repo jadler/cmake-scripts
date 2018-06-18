@@ -18,8 +18,10 @@ ENDFOREACH()
 
 OPTION (SKIP_TESTS "Skip build tests for ${PROJECT_NAME} project" OFF)
 IF (NOT SKIP_TESTS)
+	MESSAGE (STATUS "Buliding tests for ${PROJECT_NAME}")
 	ENABLE_TESTING ()
 	INCLUDE (CTest)
+	INCLUDE (${CMAKE_CURRENT_LIST_DIR}/CTestConfig.cmake)
 ENDIF ()
 
 INCLUDE (${CMAKE_CURRENT_LIST_DIR}/NSISCPackConfig.cmake) # Para
