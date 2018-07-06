@@ -1,5 +1,8 @@
-SET (VERSION_SHORT ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
-SET (VERSION_FULL ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+SET (INCLUDE_INSTALL_DIR include/ CACHE PATH "Installation directory for header files")
+SET (LIBRARY_INSTALL_DIR lib/ CACHE PATH "Installation directory for libraries")
+SET (RUNTIME_INSTALL_DIR bin/ CACHE PATH "Installation directory for binaries")
+SET (SYSCONF_INSTALL_DIR bin/ CACHE PATH "Installation directory for configuration files")
+
 
 IF (NOT DEFINED PROJECT_TYPES)
 	SET (PROJECT_TYPES "Header Library" CACHE STRING "Default artifact build type")
