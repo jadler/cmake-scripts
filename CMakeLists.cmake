@@ -1,8 +1,8 @@
 SET (INCLUDE_INSTALL_DIR include/ CACHE PATH "Installation directory for header files")
 SET (LIBRARY_INSTALL_DIR lib/ CACHE PATH "Installation directory for libraries")
 SET (RUNTIME_INSTALL_DIR bin/ CACHE PATH "Installation directory for binaries")
-SET (SYSCONF_INSTALL_DIR bin/ CACHE PATH "Installation directory for configuration files")
-
+SET (SYSCONF_INSTALL_DIR etc/ CACHE PATH "Installation directory for configuration files")
+SET (LIBRARIES_FILES "" CACHE STRING "Define empty set of libraries for ${PROJECT_NAME}")
 
 IF (NOT DEFINED PROJECT_TYPES)
 	SET (PROJECT_TYPES "Header Library" CACHE STRING "Default artifact build type")
