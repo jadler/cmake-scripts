@@ -12,12 +12,6 @@ INSTALL (
 	EXPORT ${PROJECT_NAME}Config)
 
 INSTALL (
-	EXPORT ${PROJECT_NAME}Config
-	FILE "${PROJECT_NAME}Config.cmake"
-	COMPONENT headers
-	DESTINATION lib/cmake)
-
-INSTALL (
 	DIRECTORY include/
 	COMPONENT headers
 	DESTINATION include)
