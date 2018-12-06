@@ -1,7 +1,7 @@
 SET (TNAME ${PROJECT_NAME}Binary)
 
 # Carrega todos os arquivos do diretório src em SOURCE
-FILE (GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.c*")
+FILE (GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c*")
 
 ADD_EXECUTABLE (${TNAME} ${SOURCES})
 

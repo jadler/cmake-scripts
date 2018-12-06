@@ -1,7 +1,7 @@
 SET (TNAME ${PROJECT_NAME}Library)
 
 # Carrega todos os arquivos do diretório src em SOURCE
-FILE (GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.c*")
+FILE (GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c*")
 
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
