@@ -2,10 +2,15 @@ CMAKE_MINIMUM_REQUIRED (VERSION 3.9 FATAL_ERROR)
 
 PROJECT ("Sample" VERSION 1.0.0 LANGUAGES CXX)
 
+## For test MUST be ADD_EXECUTABLE
 ADD_LIBRARY (${PROJECT_NAME})
 
 SET_TARGET_PROPERTIES (${PROJECT_NAME}
 	PROPERTIES
 		LIBRARIES "Dependency library")
 
-INCLUDE (CMakeConfig)
+## For test projects
+#INCLUDE (CTest-config)
+
+## For projects
+#INCLUDE (CMake-config)
