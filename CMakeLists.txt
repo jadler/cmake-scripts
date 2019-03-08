@@ -5,10 +5,6 @@ PROJECT ("Sample" VERSION 1.0.0 LANGUAGES CXX)
 ## For test MUST be ADD_EXECUTABLE
 ADD_LIBRARY (${PROJECT_NAME})
 
-SET_TARGET_PROPERTIES (${PROJECT_NAME}
-	PROPERTIES
-		LIBRARIES "Dependency library")
-
 ## For test projects
 #INCLUDE (CTest-config)
 
