@@ -17,6 +17,5 @@ ENDIF()
 SET (CTEST_COMMAND "ctest -M ${CTEST_MODEL} -T start -T configure -T build -T test")
 
 SET (CTEST_ENVIRONMENT
-	"GTEST_COLOR=1"
 	"CTEST_OUTPUT_ON_FAILURE=1"
 )
