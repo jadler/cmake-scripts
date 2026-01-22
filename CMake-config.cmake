@@ -1,80 +1,148 @@
-INCLUDE_DIRECTORIES (${CMAKE_INSTALL_PREFIX}/include)
+#
+# CMake-config.cmake (multi-target, package-first, instalação isolada)
+#
 
-IF (NOT DEFINED TARGET_NAME)
-	SET (TARGET_NAME "${PROJECT_NAME}")
-ENDIF ()
+# --------------------------------------------------------------------
+# Package name
+# --------------------------------------------------------------------
+if (NOT DEFINED PACKAGE_NAME)
+    set(PACKAGE_NAME "${PROJECT_NAME}")
+endif ()
 
-GET_TARGET_PROPERTY (_TYPE ${TARGET_NAME} TYPE)
-IF ("${_TYPE}" STREQUAL "INTERFACE_LIBRARY")
-	TARGET_INCLUDE_DIRECTORIES (${TARGET_NAME}
-		INTERFACE $<INSTALL_INTERFACE:include>)
-ELSE ()
-	LINK_DIRECTORIES (${CMAKE_BINARY_DIR})
+# --------------------------------------------------------------------
+# Package targets (must be defined by the project)
+# --------------------------------------------------------------------
+if (NOT DEFINED PACKAGE_TARGETS)
+    message(FATAL_ERROR "PACKAGE_TARGETS is not defined")
+endif ()
 
-	TARGET_INCLUDE_DIRECTORIES (${TARGET_NAME}
-		PUBLIC
-		$<INSTALL_INTERFACE:include>
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/src)
+foreach(t IN LISTS PACKAGE_TARGETS)
+    if (NOT TARGET "${t}")
+        message(FATAL_ERROR "Target '${t}' listed in PACKAGE_TARGETS does not exist")
+    endif ()
+endforeach ()
 
-	FILE (GLOB _SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c*)
-	STRING (TOLOWER ${CMAKE_SYSTEM_NAME} _SYSTEM_NAME)
-	FILE (GLOB_RECURSE _PSOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/${_SYSTEM_NAME}/*.c*)
-	TARGET_SOURCES (${TARGET_NAME} PRIVATE ${_SOURCES} ${_PSOURCES})
-ENDIF ()
+# --------------------------------------------------------------------
+# Infer public dependencies from all targets
+# --------------------------------------------------------------------
+include(CMakePackageConfigHelpers)
 
-IF (NOT "${_TYPE}" STREQUAL "EXECUTABLE" AND NOT "${_TYPE}" MATCHES "INTERFACE*" AND NOT "${_TYPE}" MATCHES "MODULE*")
-	INCLUDE (CMakePackageConfigHelpers)
-	WRITE_BASIC_PACKAGE_VERSION_FILE (
-		"${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}ConfigVersion.cmake"
-		COMPATIBILITY SameMajorVersion)
+set(PROJECT_DEPENDENCIES "")
 
-	GET_PROPERTY (PACKAGES GLOBAL PROPERTY PACKAGES_FOUND)
-	FOREACH (PKG ${PACKAGES})
-		SET (PROJECT_DEPENDENCIES "${PROJECT_DEPENDENCIES}FIND_DEPENDENCY (${PKG} REQUIRED)\n")
-	ENDFOREACH ()
-	CONFIGURE_FILE (
-		"${CMAKE_CURRENT_LIST_DIR}/Config.cmake.in"
-		"${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}Config.cmake"
-		@ONLY)
-	UNSET (PROJECT_DEPENDENCIES)
-	GET_PROPERTY (PARENT DIRECTORY PROPERTY PARENT_DIRECTORY)
-	IF (NOT "${PARENT}" STREQUAL "")
-		SET_PROPERTY (GLOBAL PROPERTY PACKAGES_FOUND "")
-	ENDIF()
+foreach(t IN LISTS PACKAGE_TARGETS)
 
-	INSTALL (FILES
-		"${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}Config.cmake"
-		"${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}ConfigVersion.cmake"
-		DESTINATION lib/cmake/${TARGET_NAME})
+    get_target_property(_LINK_LIBS "${t}" INTERFACE_LINK_LIBRARIES)
+    if (NOT _LINK_LIBS)
+        continue()
+    endif ()
 
-	IF (NOT DEFINED NAMESPACE)
-		SET (NAMESPACE "${TARGET_NAME}")
-	ENDIF()
-	INSTALL (EXPORT ${TARGET_NAME}Targets
-		FILE ${TARGET_NAME}Targets.cmake
-		NAMESPACE ${NAMESPACE}::
-		DESTINATION lib/cmake/${TARGET_NAME})
-ENDIF()
+    foreach(lib IN LISTS _LINK_LIBS)
 
-INSTALL (TARGETS ${TARGET_NAME}
-	EXPORT ${TARGET_NAME}Targets
-	LIBRARY DESTINATION lib COMPONENT libraries
-	ARCHIVE DESTINATION lib COMPONENT libraries
-	RUNTIME DESTINATION bin COMPONENT runtime)
+        if (TARGET "${lib}")
+            get_target_property(_IMPORTED "${lib}" IMPORTED)
 
-IF (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-	INSTALL (DIRECTORY include/
-		DESTINATION include
-		COMPONENT development)
-ENDIF()
+            if (_IMPORTED AND lib MATCHES "^([^:]+)::")
+                set(_PKG "${CMAKE_MATCH_1}")
+                string(APPEND PROJECT_DEPENDENCIES
+                    "find_dependency(${_PKG} REQUIRED)\n"
+                )
+            endif ()
+        endif ()
 
-OPTION (SKIP_TESTING "Skips the test building phase." OFF)
-IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test" AND NOT SKIP_TESTING)
-	INCLUDE (CTest-config)
-ENDIF()
+    endforeach ()
 
-IF (NOT "${CPACK_GENERATOR}" STREQUAL "")
-	INCLUDE (CPack-config)
-ENDIF()
+endforeach ()
+
+# Remove duplicates
+string(REPLACE "\n" ";" _DEP_LIST "${PROJECT_DEPENDENCIES}")
+list(REMOVE_DUPLICATES _DEP_LIST)
+string(REPLACE ";" "\n" PROJECT_DEPENDENCIES "${_DEP_LIST}")
+
+# Allow manual override / extension
+set(PROJECT_DEPENDENCIES "${PROJECT_DEPENDENCIES}" CACHE STRING
+    "Extra find_dependency() calls"
+)
+
+# --------------------------------------------------------------------
+# Export all targets together
+# --------------------------------------------------------------------
+if (NOT DEFINED NAMESPACE)
+    set(NAMESPACE "${PACKAGE_NAME}")
+endif ()
+
+# --------------------------------------------------------------------
+# Install prefix isolado
+# --------------------------------------------------------------------
+if (NOT DEFINED INSTALL_PREFIX)
+    set(INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+endif()
+
+# --------------------------------------------------------------------
+# Config + version files
+# --------------------------------------------------------------------
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}ConfigVersion.cmake"
+    COMPATIBILITY SameMajorVersion
+)
+
+configure_file(
+    "${CMAKE_CURRENT_LIST_DIR}/Config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}Config.cmake"
+    @ONLY
+)
+
+# --------------------------------------------------------------------
+# Runtime instalation
+# --------------------------------------------------------------------
+install(TARGETS ${PACKAGE_TARGETS}
+    EXPORT ${PACKAGE_NAME}Targets
+    LIBRARY DESTINATION ${INSTALL_PREFIX}/lib COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_PREFIX}/lib COMPONENT runtime
+    RUNTIME DESTINATION ${INSTALL_PREFIX}/bin COMPONENT runtime
+)
+
+# --------------------------------------------------------------------
+# Development instalation
+# Headers, configs and export files
+# --------------------------------------------------------------------
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}Config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}ConfigVersion.cmake"
+    DESTINATION "${INSTALL_PREFIX}/cmake/${PACKAGE_NAME}"
+    COMPONENT development
+)
+
+install(EXPORT ${PACKAGE_NAME}Targets
+    FILE ${PACKAGE_NAME}Targets.cmake
+    NAMESPACE ${NAMESPACE}::
+    DESTINATION ${INSTALL_PREFIX}/cmake/${PACKAGE_NAME}
+    COMPONENT development
+)
+
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    install(DIRECTORY include/
+        DESTINATION ${INSTALL_PREFIX}/include
+        COMPONENT development
+    )
+endif ()
+
+# --------------------------------------------------------------------
+# Testes automáticos
+# --------------------------------------------------------------------
+option(SKIP_TESTING "Skips the test building phase." OFF)
+
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test" AND NOT SKIP_TESTING)
+    include(CTest)
+
+    # Inclui CTest-config do toolkit multi-target
+    # Assume que PACKAGE_TARGETS está definido
+    include("${CMAKE_CURRENT_LIST_DIR}/CTest-config.cmake")
+endif()
+
+# --------------------------------------------------------------------
+# Empacotamento com CPack
+# --------------------------------------------------------------------
+if (NOT "${CPACK_GENERATOR}" STREQUAL "")
+    include("${CMAKE_CURRENT_LIST_DIR}/CPack-config.cmake")
+endif()
+

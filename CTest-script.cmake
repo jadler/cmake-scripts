@@ -1,21 +1,46 @@
-FIND_PROGRAM (CTEST_COVERAGE_COMMAND NAMES gcov)
-FIND_PROGRAM (CTEST_MEMORYCHECK_COMMAND NAMES valgrind)
+# ------------------------------------------------------------
+# CTest dashboard / CI script
+# ------------------------------------------------------------
 
-# CTest dashboard steps
-# https://cmake.org/cmake/help/v3.12/manual/ctest.1.html#id19
+find_program(CTEST_COVERAGE_COMMAND     NAMES gcov)
+find_program(CTEST_MEMORYCHECK_COMMAND  NAMES valgrind)
 
-IF (NOT DEFINED CMAKE_BUILD_TYPE)
-	SET (CMAKE_BUILD_TYPE Debug)
-ENDIF()
-SET (CTEST_CMAKE_COMMAND "cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
-	-DCMAKE_MODULE_PATH=${CMAKE_CURRENT_LIST_DIR} \
-	--no-warn-unused-cli")
+# ------------------------------------------------------------
+# Build configuration
+# ------------------------------------------------------------
 
-IF (NOT DEFINED CTEST_MODEL)
-	SET (CTEST_MODEL Experimental)
-ENDIF()
-SET (CTEST_COMMAND "ctest -M ${CTEST_MODEL} -T start -T configure -T build -T test")
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
 
-SET (CTEST_ENVIRONMENT
-	"CTEST_OUTPUT_ON_FAILURE=1"
+set(CTEST_CMAKE_COMMAND
+    "cmake
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DCMAKE_MODULE_PATH=${CMAKE_CURRENT_LIST_DIR}
+        --no-warn-unused-cli"
+)
+
+# ------------------------------------------------------------
+# Dashboard model
+# ------------------------------------------------------------
+
+if(NOT DEFINED CTEST_MODEL)
+    set(CTEST_MODEL Experimental)
+endif()
+
+set(CTEST_COMMAND
+    "ctest
+        -M ${CTEST_MODEL}
+        -T start
+        -T configure
+        -T build
+        -T test"
+)
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+set(CTEST_ENVIRONMENT
+    "CTEST_OUTPUT_ON_FAILURE=1"
 )

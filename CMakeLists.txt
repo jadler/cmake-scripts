@@ -1,12 +1,12 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
-PROJECT ("Sample" VERSION 1.0.0 LANGUAGES CXX)
+project(Sample VERSION 1.0.0 LANGUAGES CXX)
 
-## For test MUST be ADD_EXECUTABLE
-ADD_LIBRARY (${PROJECT_NAME})
+# Example library target
+add_library(${PROJECT_NAME})
 
-## For test projects
-#INCLUDE (CTest-config)
+# For test projects
+# include(CTest-config)
 
-## For projects
-#INCLUDE (CMake-config)
+# For real projects
+# include(CMake-config)
