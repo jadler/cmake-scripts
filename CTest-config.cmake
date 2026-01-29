@@ -1,6 +1,6 @@
 # ------------------------------------------------------------
 # CTest-config.cmake (multi-target)
-# One test executable per public target
+# One test executable per source file
 # ------------------------------------------------------------
 
 include(CTest)
@@ -11,11 +11,6 @@ if (NOT DEFINED PACKAGE_TARGETS)
 endif ()
 
 foreach(t IN LISTS PACKAGE_TARGETS)
-
-    # --------------------------------------------------------
-    # Test target name
-    # --------------------------------------------------------
-    set(TEST_TARGET "${t}Test")
 
     # --------------------------------------------------------
     # Expected test source directory
@@ -53,56 +48,71 @@ foreach(t IN LISTS PACKAGE_TARGETS)
         continue()
     endif ()
 
-    # --------------------------------------------------------
-    # Create test executable
-    # --------------------------------------------------------
-    add_executable("${TEST_TARGET}")
+    foreach(TEST_FILE IN LISTS TEST_SOURCES)
 
-    set_target_properties("${TEST_TARGET}" PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${TEST_RUNTIME_DIR}"
-    )
+        # ----------------------------------------------------
+        # Extract file name and remove only last extension
+        # ----------------------------------------------------
+        get_filename_component(TEST_FILE_NAME "${TEST_FILE}" NAME)
+        string(REGEX REPLACE "\\.[^.]+$" "" TEST_BIN_NAME "${TEST_FILE_NAME}")
 
-    target_sources("${TEST_TARGET}" PRIVATE ${TEST_SOURCES})
-    
-    add_custom_command(
-        TARGET "${TEST_TARGET}" POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${TEST_RUNTIME_DIR}"
-    )
+        # ----------------------------------------------------
+        # Prefix with target to avoid collisions/reserved names
+        # ----------------------------------------------------
+        set(TEST_BIN_NAME "${t}_${TEST_BIN_NAME}")
 
-    if (EXISTS "${TEST_RESOURCES_DIR}")
+        # ----------------------------------------------------
+        # Create test executable
+        # ----------------------------------------------------
+        add_executable("${TEST_BIN_NAME}")
+
+        set_target_properties("${TEST_BIN_NAME}" PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${TEST_RUNTIME_DIR}"
+        )
+
+        target_sources("${TEST_BIN_NAME}" PRIVATE "${TEST_FILE}")
+        
         add_custom_command(
-            TARGET "${TEST_TARGET}" POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${TEST_RESOURCES_DIR}"
-            "${TEST_RUNTIME_DIR}"
+            TARGET "${TEST_BIN_NAME}" POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${TEST_RUNTIME_DIR}"
         )
-    endif ()
 
-    # --------------------------------------------------------
-    # Include public headers (if any)
-    # --------------------------------------------------------
-    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
-        target_include_directories("${TEST_TARGET}"
-            PRIVATE
-                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        if (EXISTS "${TEST_RESOURCES_DIR}")
+            add_custom_command(
+                TARGET "${TEST_BIN_NAME}" POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${TEST_RESOURCES_DIR}"
+                "${TEST_RUNTIME_DIR}"
+            )
+        endif ()
+
+        # ----------------------------------------------------
+        # Include public headers (if any)
+        # ----------------------------------------------------
+        if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+            target_include_directories("${TEST_BIN_NAME}"
+                PRIVATE
+                    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            )
+        endif ()
+
+        # ----------------------------------------------------
+        # Link test target with the library under test
+        # ----------------------------------------------------
+        target_link_libraries("${TEST_BIN_NAME}" PRIVATE "${t}")
+
+        # Ensure correct build order
+        add_dependencies("${TEST_BIN_NAME}" "${t}")
+
+        # ----------------------------------------------------
+        # Register with CTest
+        # ----------------------------------------------------
+        add_test(
+            NAME "${TEST_BIN_NAME}.test"
+            WORKING_DIRECTORY "${TEST_RUNTIME_DIR}"
+            COMMAND "${TEST_BIN_NAME}"
         )
-    endif ()
 
-    # --------------------------------------------------------
-    # Link test target with the library under test
-    # --------------------------------------------------------
-    target_link_libraries("${TEST_TARGET}" PRIVATE "${t}")
-
-    # Ensure correct build order
-    add_dependencies("${TEST_TARGET}" "${t}")
-
-    # --------------------------------------------------------
-    # Register with CTest
-    # --------------------------------------------------------
-    add_test(
-        NAME "${t}.test"
-        WORKING_DIRECTORY "${TEST_RUNTIME_DIR}"
-        COMMAND "${TEST_TARGET}"
-    )
+    endforeach ()
 
 endforeach ()
